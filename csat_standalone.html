@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Colibri Digital — CSAT Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.0/dist/chart.umd.js" integrity="sha384-iU8HYtnGQ8Cy4zl7gbNMOhsDTTKX02BTXptVP/vqAWIaTfM7isw76iyZCsjL2eVi" crossorigin="anonymous"></script>
+<style>
+  :root { color-scheme: light; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f5f6fa; color: #1a1a2e; font-size: 14px; }
+
+  .header { background: #0f3d2e; color: white; padding: 18px 28px; display: flex; align-items: center; justify-content: space-between; }
+  .header-left { display: flex; align-items: center; gap: 14px; }
+  .logo { width: 36px; height: 36px; background: rgba(255,255,255,0.15); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; letter-spacing: -1px; }
+  .header .h1 { font-size: 19px; font-weight: 600; letter-spacing: -0.3px; }
+  .header .subtitle { font-size: 12px; opacity: 0.65; margin-top: 2px; }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .last-updated { font-size: 11px; opacity: 0.6; }
+  .reload-btn { background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.3); color: white; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 12px; transition: background 0.2s; }
+  .reload-btn:hover { background: rgba(255,255,255,0.28); }
+
+  .filters { background: white; border-bottom: 1px solid #e5e7eb; padding: 10px 28px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+  .filter-group { display: flex; align-items: center; gap: 6px; }
+  .filter-group label { font-size: 12px; font-weight: 500; color: #6b7280; white-space: nowrap; }
+  .filter-group select { border: 1px solid #d1d5db; border-radius: 6px; padding: 5px 10px; font-size: 13px; color: #1a1a2e; background: #fafafa; cursor: pointer; min-width: 155px; }
+  .filter-group select:focus { outline: none; border-color: #0f3d2e; box-shadow: 0 0 0 2px rgba(15,61,46,0.12); }
+  .clear-btn { background: none; border: 1px solid #d1d5db; color: #6b7280; padding: 5px 12px; border-radius: 6px; cursor: pointer; font-size: 12px; margin-left: 4px; }
+  .clear-btn:hover { border-color: #0f3d2e; color: #0f3d2e; }
+  .result-count { font-size: 12px; color: #9ca3af; margin-left: auto; }
+
+  .main { padding: 22px 28px; max-width: 1400px; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(165px, 1fr)); gap: 12px; margin-bottom: 20px; }
+  .kpi { background: white; border-radius: 10px; padding: 16px 18px; border: 1px solid #e5e7eb; }
+  .kpi-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: #6b7280; margin-bottom: 6px; }
+  .kpi-value { font-size: 32px; font-weight: 700; color: #0f3d2e; line-height: 1; }
+  .kpi-sub { font-size: 11px; color: #9ca3af; margin-top: 4px; }
+  .kpi-stars { color: #f59e0b; font-size: 16px; margin-top: 3px; }
+
+  .trend-card { background: white; border-radius: 10px; border: 1px solid #e5e7eb; padding: 18px 20px; margin-bottom: 20px; }
+  .card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; flex-wrap: wrap; gap: 8px; }
+  .card-header h3 { font-size: 13px; font-weight: 600; color: #374151; }
+  .card-header .note { font-size: 11px; color: #9ca3af; margin-top: 2px; }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 5px; font-size: 11px; color: #6b7280; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .chart-wrap-tall { position: relative; height: 260px; }
+
+  .snapshot { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; margin-top: 14px; }
+  .month-snap { background: #f9fafb; border-radius: 8px; padding: 10px 12px; border: 1px solid #e5e7eb; text-align: center; }
+  .ms-label { font-size: 11px; font-weight: 600; color: #6b7280; margin-bottom: 5px; }
+  .ms-csat { font-size: 22px; font-weight: 700; color: #0f3d2e; }
+  .ms-nps { font-size: 13px; color: #059669; font-weight: 600; margin-top: 2px; }
+  .ms-n { font-size: 10px; color: #9ca3af; margin-top: 2px; }
+
+  .charts { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px; }
+  .chart-card { background: white; border-radius: 10px; border: 1px solid #e5e7eb; padding: 18px 20px; }
+  .chart-card h3 { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 14px; }
+  .chart-wrap { position: relative; height: 220px; }
+
+  .table-card { background: white; border-radius: 10px; border: 1px solid #e5e7eb; padding: 18px 20px; margin-bottom: 20px; overflow-x: auto; }
+  .table-card h3 { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 14px; }
+  .scores-table { width: 100%; border-collapse: collapse; font-size: 12px; min-width: 800px; }
+  .scores-table th { background: #f9fafb; padding: 8px 10px; text-align: left; font-weight: 600; color: #6b7280; border-bottom: 1px solid #e5e7eb; font-size: 11px; text-transform: uppercase; letter-spacing: 0.3px; white-space: nowrap; }
+  .scores-table td { padding: 9px 10px; border-bottom: 1px solid #f3f4f6; vertical-align: top; }
+  .scores-table tr:last-child td { border-bottom: none; }
+  .scores-table tr:hover td { background: #f9fafb; }
+  .sp { display: inline-block; width: 26px; text-align: center; border-radius: 4px; padding: 2px 0; font-weight: 600; font-size: 12px; }
+  .s5 { background: #d1fae5; color: #065f46; } .s4 { background: #dbeafe; color: #1e40af; }
+  .s3 { background: #fef3c7; color: #92400e; } .s2,.s1 { background: #fee2e2; color: #991b1b; }
+  .nps-chip { display: inline-block; border-radius: 4px; padding: 2px 6px; font-weight: 600; font-size: 12px; background: #d1fae5; color: #065f46; }
+
+  .comments-card { background: white; border-radius: 10px; border: 1px solid #e5e7eb; padding: 18px 20px; }
+  .comments-card h3 { font-size: 13px; font-weight: 600; color: #374151; margin-bottom: 14px; }
+  .comment-item { border-left: 3px solid #0f3d2e; padding: 10px 14px; margin-bottom: 10px; background: #f9fafb; border-radius: 0 6px 6px 0; }
+  .comment-meta { font-size: 11px; color: #9ca3af; margin-bottom: 4px; }
+  .comment-text { font-size: 13px; color: #374151; line-height: 1.55; }
+
+  .loading { text-align: center; padding: 80px 20px; color: #6b7280; }
+  .spinner { width: 36px; height: 36px; border: 3px solid #e5e7eb; border-top-color: #0f3d2e; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 0 auto 14px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .error-box { background: #fee2e2; color: #991b1b; padding: 16px 20px; border-radius: 8px; margin: 20px; line-height: 1.5; }
+  .config-notice { background: #fef3c7; color: #92400e; padding: 14px 20px; border-radius: 8px; margin: 20px; font-size: 13px; line-height: 1.6; }
+  .config-notice code { background: rgba(0,0,0,0.08); padding: 2px 6px; border-radius: 3px; font-family: monospace; }
+  @media (max-width: 700px) { .charts { grid-template-columns: 1fr; } .main { padding: 16px; } }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">CD</div>
+    <div>
+      <div class="h1">Colibri Digital — CSAT Dashboard</div>
+      <div class="subtitle">Customer Satisfaction · Live from Google Sheets</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="last-updated" id="lastUpdated"></span>
+    <button class="reload-btn" onclick="loadData()">↻ Refresh</button>
+  </div>
+</div>
+
+<div class="filters" id="filters" style="display:none">
+  <div class="filter-group"><label>Engagement Manager</label>
+    <select id="f-em" onchange="applyFilters()"><option value="">All</option></select></div>
+  <div class="filter-group"><label>Practice</label>
+    <select id="f-practice" onchange="applyFilters()"><option value="">All</option></select></div>
+  <div class="filter-group"><label>Month</label>
+    <select id="f-month" onchange="applyFilters()"><option value="">All</option></select></div>
+  <div class="filter-group"><label>Customer</label>
+    <select id="f-customer" onchange="applyFilters()"><option value="">All</option></select></div>
+  <button class="clear-btn" onclick="clearFilters()">Clear</button>
+  <span class="result-count" id="resultCount"></span>
+</div>
+
+<div class="main" id="main">
+  <div class="loading"><div class="spinner"></div><div>Loading CSAT data…</div></div>
+</div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────────────────
+// CONFIG — paste your Google Sheets "Publish to web" CSV URL below
+// File → Share → Publish to web → Form Responses 2 → CSV → Publish → copy URL
+// ─────────────────────────────────────────────────────────────────────────────
+const CSV_URL = 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTGQK0yf7iim2VkRWLyd_qAAHinY7uVtiY1rvMzNZ4LXzYdbuP72HT_M2mE_NvmKu4cqRhGpgHlt2Y7/pub?gid=1445386658&single=true&output=csv';
+// ─────────────────────────────────────────────────────────────────────────────
+
+let allData = [];
+const METRICS = [
+  { key: 'delivery',   short: 'Delivery',   label: 'Delivery Leadership & Control' },
+  { key: 'comms',      short: 'Comms',      label: 'Communication & Professionalism' },
+  { key: 'problem',    short: 'Technical',  label: 'Problem Solving & Technical' },
+  { key: 'reqfit',     short: 'Req Fit',    label: 'Requirements & Solution Fit' },
+  { key: 'commercial', short: 'Commercial', label: 'Commercial Management' },
+  { key: 'overall',    short: 'Overall',    label: 'Overall Experience' },
+];
+const MONTH_ORDER = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+// Robust CSV parser — handles quoted fields, commas inside quotes, newlines
+function parseCSV(text) {
+  const rows = [];
+  let row = [], field = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i], n = text[i+1];
+    if (inQ) {
+      if (c === '"' && n === '"') { field += '"'; i++; }
+      else if (c === '"') inQ = false;
+      else field += c;
+    } else {
+      if (c === '"') { inQ = true; }
+      else if (c === ',') { row.push(field); field = ''; }
+      else if (c === '\r' && n === '\n') { row.push(field); rows.push(row); row = []; field = ''; i++; }
+      else if (c === '\n' || c === '\r') { row.push(field); rows.push(row); row = []; field = ''; }
+      else field += c;
+    }
+  }
+  if (field || row.length) { row.push(field); rows.push(row); }
+  return rows.filter(r => r.some(c => c.trim()));
+}
+
+function buildRecords(rows) {
+  if (rows.length < 2) return [];
+  const records = [], seen = new Set();
+  for (let i = 1; i < rows.length; i++) {
+    const c = rows[i];
+    if (c.length < 20 || !c[0]) continue;
+    const parts = c[0].split(' ')[0].split('/');
+    const d = parts.length === 3
+      ? new Date(parseInt(parts[2]), parseInt(parts[0])-1, parseInt(parts[1]))
+      : new Date(c[0]);
+    const key = c[0] + '|' + c[1];
+    if (seen.has(key)) continue;
+    seen.add(key);
+    records.push({
+      timestamp:   c[0]  || '',
+      date:        d,
+      month:       isNaN(d) ? c[0] : d.toLocaleString('en-GB', { month: 'short', year: 'numeric' }),
+      projectName: c[1]  || '',
+      customer:    c[3]  || '',
+      em:          c[5]  || '',
+      practice:    c[7]  || '',
+      endDate:     c[8]  || '',
+      delivery:    parseFloat(c[13]) || 0,
+      comms:       parseFloat(c[14]) || 0,
+      problem:     parseFloat(c[15]) || 0,
+      reqfit:      parseFloat(c[16]) || 0,
+      commercial:  parseFloat(c[17]) || 0,
+      overall:     parseFloat(c[18]) || 0,
+      comments:    c[19] || '',
+      nps:         parseFloat(c[21]) || 0,
+    });
+  }
+  return records;
+}
+
+async function loadData() {
+  document.getElementById('main').innerHTML = `<div class="loading"><div class="spinner"></div><div>Loading CSAT data from Google Sheets…</div></div>`;
+  document.getElementById('filters').style.display = 'none';
+
+  if (false) { // config check disabled — URL is set
+    document.getElementById('main').innerHTML = `<div class="config-notice">
+      <strong>Setup required:</strong> Open this HTML file in a text editor and replace <code>https://docs.google.com/spreadsheets/d/e/2PACX-1vTGQK0yf7iim2VkRWLyd_qAAHinY7uVtiY1rvMzNZ4LXzYdbuP72HT_M2mE_NvmKu4cqRhGpgHlt2Y7/pub?gid=1445386658&single=true&output=csv</code> with your Google Sheets published CSV URL.<br><br>
+      In Google Sheets: <strong>File → Share → Publish to web → Form Responses 2 → CSV → Publish</strong> → copy the URL → paste it on line 1 of the CONFIG section.
+    </div>`;
+    return;
+  }
+
+  try {
+    const resp = await fetch(CSV_URL);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const text = await resp.text();
+    allData = buildRecords(parseCSV(text));
+    if (!allData.length) throw new Error('No records found in sheet — check the published CSV URL points to the correct tab.');
+    document.getElementById('lastUpdated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+    populateFilters();
+    applyFilters();
+  } catch (err) {
+    document.getElementById('main').innerHTML = `<div class="error-box"><strong>Could not load data.</strong><br>${err.message}<br><br>Check the CSV_URL in the config, and make sure the sheet is published (File → Share → Publish to web).</div>`;
+  }
+}
+
+function populateFilters() {
+  const set = (id, vals) => {
+    const sel = document.getElementById(id), cur = sel.value;
+    sel.innerHTML = '<option value="">All</option>';
+    [...new Set(vals)].filter(Boolean).sort().forEach(v =>
+      sel.innerHTML += `<option value="${v}"${v===cur?' selected':''}>${v}</option>`);
+  };
+  set('f-em',       allData.map(r => r.em));
+  set('f-practice', allData.map(r => r.practice));
+  set('f-month',    allData.map(r => r.month));
+  set('f-customer', allData.map(r => r.customer));
+  document.getElementById('filters').style.display = 'flex';
+}
+
+function clearFilters() {
+  ['f-em','f-practice','f-month','f-customer'].forEach(id => document.getElementById(id).value = '');
+  applyFilters();
+}
+
+function applyFilters() {
+  const em = document.getElementById('f-em').value;
+  const pr = document.getElementById('f-practice').value;
+  const mo = document.getElementById('f-month').value;
+  const cu = document.getElementById('f-customer').value;
+  const filtered = allData.filter(r =>
+    (!em||r.em===em)&&(!pr||r.practice===pr)&&(!mo||r.month===mo)&&(!cu||r.customer===cu));
+  document.getElementById('resultCount').textContent = filtered.length !== allData.length
+    ? `${filtered.length} of ${allData.length} responses` : `${allData.length} responses`;
+  renderDashboard(filtered);
+}
+
+const avg = (arr, key) => { const v=arr.map(r=>r[key]).filter(x=>x>0); return v.length?v.reduce((a,b)=>a+b)/v.length:null; };
+const calcNPS = arr => { if(!arr.length)return null; const p=arr.filter(r=>r.nps>=9).length,d=arr.filter(r=>r.nps<=6).length; return Math.round((p-d)/arr.length*100); };
+const stars = s => { const f=Math.round(s||0); return '★'.repeat(f)+'☆'.repeat(5-f); };
+const pill = s => `<span class="sp ${s>=1?'s'+Math.round(s):''}">${s||'–'}</span>`;
+
+function buildMonthly(data) {
+  const map = {};
+  data.forEach(r => { if(!map[r.month])map[r.month]=[]; map[r.month].push(r); });
+  return Object.keys(map)
+    .sort((a,b) => { const [am,ay]=a.split(' '), [bm,by]=b.split(' ');
+      return (parseInt(ay)-parseInt(by))||MONTH_ORDER.indexOf(am)-MONTH_ORDER.indexOf(bm); })
+    .map(m => ({ month:m, n:map[m].length, csat:avg(map[m],'overall'), nps:calcNPS(map[m]) }));
+}
+
+function renderDashboard(data) {
+  if (!data.length) {
+    document.getElementById('main').innerHTML = '<div class="loading">No responses match the selected filters.</div>';
+    return;
+  }
+  const ovAvg = avg(data,'overall'), allAvg = METRICS.reduce((s,m)=>s+(avg(data,m.key)||0),0)/METRICS.length;
+  const nps = calcNPS(data), mAvgs = METRICS.map(m=>avg(data,m.key)||0);
+  const minVal = Math.min(...mAvgs), minM = METRICS[mAvgs.indexOf(minVal)];
+  const monthly = buildMonthly(data);
+
+  document.getElementById('main').innerHTML = `
+    <div class="kpis">
+      <div class="kpi"><div class="kpi-label">Responses</div><div class="kpi-value">${data.length}</div><div class="kpi-sub">projects scored</div></div>
+      <div class="kpi"><div class="kpi-label">Overall Score</div><div class="kpi-value">${(ovAvg||0).toFixed(1)}<span style="font-size:17px;color:#9ca3af">/5</span></div><div class="kpi-stars">${stars(ovAvg)}</div></div>
+      <div class="kpi"><div class="kpi-label">Net Promoter Score</div><div class="kpi-value" style="color:#059669">${nps}</div><div class="kpi-sub">${data.filter(r=>r.nps>=9).length} promoters · ${data.filter(r=>r.nps<=6).length} detractors</div></div>
+      <div class="kpi"><div class="kpi-label">Avg All Dimensions</div><div class="kpi-value">${allAvg.toFixed(1)}<span style="font-size:17px;color:#9ca3af">/5</span></div><div class="kpi-sub">across 6 categories</div></div>
+      <div class="kpi"><div class="kpi-label">Lowest Dimension</div><div class="kpi-value" style="font-size:22px;color:#d97706">${minVal.toFixed(1)}</div><div class="kpi-sub">${minM?minM.short:'–'}</div></div>
+    </div>
+
+    <div class="trend-card">
+      <div class="card-header">
+        <div><h3>Monthly CSAT &amp; NPS Trend</h3><div class="note">CSAT overall /5 (left axis) · NPS score (right axis) · bars = response count</div></div>
+        <div class="legend">
+          <div class="legend-item"><div class="legend-dot" style="background:#0f3d2e"></div>CSAT /5</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#059669"></div>NPS</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#d1d5db"></div>Responses</div>
+        </div>
+      </div>
+      <div class="chart-wrap-tall"><canvas id="trendChart"></canvas></div>
+      ${monthly.length>0?`<div class="snapshot">${monthly.map(m=>`
+        <div class="month-snap">
+          <div class="ms-label">${m.month}</div>
+          <div class="ms-csat">${m.csat!==null?m.csat.toFixed(1):'–'}</div>
+          <div class="ms-nps">NPS ${m.nps!==null?m.nps:'–'}</div>
+          <div class="ms-n">${m.n} response${m.n!==1?'s':''}</div>
+        </div>`).join('')}</div>`:''}
+    </div>
+
+    <div class="charts">
+      <div class="chart-card"><h3>Average Score by Dimension</h3><div class="chart-wrap"><canvas id="barChart"></canvas></div></div>
+      <div class="chart-card"><h3>Dimension Radar</h3><div class="chart-wrap"><canvas id="radarChart"></canvas></div></div>
+    </div>
+
+    <div class="table-card"><h3>Response Details</h3>
+      <table class="scores-table">
+        <thead><tr>
+          <th>Project</th><th>Customer</th><th>EM</th><th>Practice</th>
+          <th style="text-align:center">Delivery</th><th style="text-align:center">Comms</th>
+          <th style="text-align:center">Technical</th><th style="text-align:center">Req Fit</th>
+          <th style="text-align:center">Commercial</th><th style="text-align:center">Overall</th>
+          <th style="text-align:center">NPS</th>
+        </tr></thead>
+        <tbody>${data.map(r=>`<tr>
+          <td><strong>${r.projectName}</strong><br><span style="color:#9ca3af;font-size:11px">${r.endDate}</span></td>
+          <td>${r.customer}</td><td>${r.em}</td><td>${r.practice}</td>
+          <td style="text-align:center">${pill(r.delivery)}</td>
+          <td style="text-align:center">${pill(r.comms)}</td>
+          <td style="text-align:center">${pill(r.problem)}</td>
+          <td style="text-align:center">${pill(r.reqfit)}</td>
+          <td style="text-align:center">${pill(r.commercial)}</td>
+          <td style="text-align:center">${pill(r.overall)}</td>
+          <td style="text-align:center"><span class="nps-chip">${r.nps}</span></td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>
+
+    <div class="comments-card"><h3>Customer Comments</h3>
+      ${data.filter(r=>r.comments&&r.comments.length>10).map(r=>`
+        <div class="comment-item">
+          <div class="comment-meta">${r.projectName} · ${r.customer} · ${r.endDate}</div>
+          <div class="comment-text">${r.comments.replace(/\n/g,'<br>')}</div>
+        </div>`).join('')}
+    </div>`;
+
+  // Trend
+  new Chart(document.getElementById('trendChart').getContext('2d'), {
+    type:'line', data:{
+      labels: monthly.map(m=>m.month),
+      datasets:[
+        { label:'CSAT /5', data:monthly.map(m=>m.csat), borderColor:'#0f3d2e', backgroundColor:'rgba(15,61,46,0.08)', borderWidth:3, pointBackgroundColor:'#0f3d2e', pointRadius:6, tension:0.3, fill:true, yAxisID:'yCsat' },
+        { label:'NPS', data:monthly.map(m=>m.nps), borderColor:'#059669', borderWidth:2, borderDash:[6,3], pointBackgroundColor:'#059669', pointRadius:5, tension:0.3, fill:false, yAxisID:'yNps' },
+        { label:'Responses', type:'bar', data:monthly.map(m=>m.n), backgroundColor:'rgba(209,213,219,0.55)', borderColor:'#d1d5db', borderWidth:1, borderRadius:4, yAxisID:'yCount' }
+      ]
+    }, options:{
+      responsive:true, maintainAspectRatio:false, interaction:{mode:'index',intersect:false},
+      plugins:{ legend:{display:false}, tooltip:{ callbacks:{ label:ctx => ctx.dataset.label==='CSAT /5'?` CSAT: ${ctx.parsed.y!==null?ctx.parsed.y.toFixed(2):'–'}/5`: ctx.dataset.label==='NPS'?` NPS: ${ctx.parsed.y!==null?ctx.parsed.y:'–'}`:` Responses: ${ctx.parsed.y}` }}},
+      scales:{
+        yCsat:{type:'linear',position:'left',min:0,max:5,ticks:{stepSize:1,color:'#0f3d2e',font:{weight:'600'}},grid:{color:'#f3f4f6'},title:{display:true,text:'CSAT /5',color:'#0f3d2e',font:{size:11}}},
+        yNps:{type:'linear',position:'right',min:-100,max:100,ticks:{stepSize:25,color:'#059669',font:{weight:'600'}},grid:{display:false},title:{display:true,text:'NPS',color:'#059669',font:{size:11}}},
+        yCount:{type:'linear',position:'right',display:false,min:0},
+        x:{grid:{display:false}}
+      }
+    }
+  });
+
+  // Bar
+  new Chart(document.getElementById('barChart').getContext('2d'), {
+    type:'bar', data:{
+      labels:METRICS.map(m=>m.short),
+      datasets:[{ data:mAvgs, backgroundColor:mAvgs.map(v=>v>=4.5?'#059669':v>=3.5?'#0f3d2e':'#d97706'), borderRadius:5, borderSkipped:false }]
+    }, options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ y:{min:0,max:5,ticks:{stepSize:1},grid:{color:'#f3f4f6'}}, x:{grid:{display:false}} } }
+  });
+
+  // Radar
+  new Chart(document.getElementById('radarChart').getContext('2d'), {
+    type:'radar', data:{
+      labels:METRICS.map(m=>m.short),
+      datasets:[{ data:mAvgs, backgroundColor:'rgba(15,61,46,0.15)', borderColor:'#0f3d2e', borderWidth:2, pointBackgroundColor:'#0f3d2e', pointRadius:4 }]
+    }, options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ r:{ min:0,max:5, ticks:{stepSize:1,backdropColor:'transparent',font:{size:10}}, grid:{color:'#e5e7eb'}, pointLabels:{font:{size:11}} } } }
+  });
+}
+
+loadData();
+</script>
+</body>
+</html>
